@@ -362,6 +362,18 @@ void *process(){
 	queue *temp;
 	queue *temp_plus;
 	char *msg_temp;
+	char message[100] = {'\0'};
+        char hash_key[65] = {'\0'};
+        char hashes[10][65] = {'\0'};
+        char message_sig[129] = {'\0'};
+        char KeyID[10] = {'\0'};
+        char pubkey[129] = {'\0'};
+        char ts[10] = {'\0'};
+        char te[10] = {'\0'};
+        char cert_sig[129] = {'\0'};
+        char Mac[129] = {'\0'};
+        char msg_hash[65] = {'\0'};
+        char message_cache[1024] = {'\0'};
         while(1){
                 int expire=0;
                 //Skip the process if there is no message in the linked list (header->next is NULL)
@@ -383,6 +395,7 @@ void *process(){
                 	temp_plus = queue2_msg_header;
                 	msg_temp = temp->next->str;
 		}
+		SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, msg_hash, msg_temp, message_cache, num);
                 clock_gettime(CLOCK_REALTIME, &(time_process[cnt_msg_end]));
                 //queue *temp = queue_msg_header;
                 //queue *temp_plus = queue_msg_header;
@@ -396,6 +409,7 @@ void *process(){
                 if (flag == 1){
                         num++;
                         printf("Verification successful!\n");
+			//hash_table_input(ht3,KeyID,ts,te,pubkey,message_cache,Mac);
                 } else if (flag == 0){
                         num++;
                         printf("Verification failed!\n");
