@@ -396,6 +396,10 @@ void *process(){
                 	msg_temp = temp->next->str;
 		}
 		SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, msg_hash, msg_temp, message_cache, num);
+		if(hash_table_get(ht3, KeyID, pubkey) == 1)
+		{
+			continue;
+		}
                 clock_gettime(CLOCK_REALTIME, &(time_process[cnt_msg_end]));
                 //queue *temp = queue_msg_header;
                 //queue *temp_plus = queue_msg_header;
