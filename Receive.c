@@ -303,7 +303,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
                 break;
         case 1:
                 printf("Beacon Verification Success.\n");
-		hash_table_input(ht3,KeyID,ts,te,pubkey,message_cache,Mac);
+		hash_table_input(ht3,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
 		for(int hash_index = 0; hash_index++; hash_index<num)
 		{
 			if(hash_table_get_message(ht2, hashes[hash_index], message_cache_coorperative, Mac_cooperative) == 1)

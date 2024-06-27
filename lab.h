@@ -43,6 +43,7 @@ int EVP(unsigned char message[],unsigned char digest[], unsigned int *digest_len
 double message_sign(unsigned char beacon[], unsigned char base64message[], unsigned char tesla_key_use[], int flag, unsigned char* prikey_addr, unsigned char* pubkey_addr);
 struct valid_PC{
         struct valid_PC* next;
+	char* key;
         char* KeyID;
         char* ts;
         char* te;
@@ -64,7 +65,7 @@ queue * initLink();
 queue * insertElem(queue * p,char* msg);
 static unsigned int hash_33(char* key);
 struct HashTable_PC* hash_table_new();
-int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* message_cache, unsigned char* message_cache_mac);
+int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* KeyID, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* message_cache, unsigned char* message_cache_mac);
 //int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* ts, unsigned char* te, unsigned char* pubkey);
 int hash_table_get(struct HashTable_PC* ht, char* key, char* pubkey);
 int hash_table_get_message(struct HashTable_PC* ht, char* key, char* message_cache, char* message_cache_mac);

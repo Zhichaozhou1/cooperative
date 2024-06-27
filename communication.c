@@ -234,8 +234,8 @@ void* recv_message (void *sock){
 			if (doespcstore == 0)
 			{
 				queue_msg_rear = insertElem(queue_msg_rear, message_recv);
-				hash_table_input(ht,KeyID,ts,te,pubkey,message_cache,Mac);
-				hash_table_input(ht2,msg_hash,ts,te,pubkey,message_cache,Mac);
+				hash_table_input(ht,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
+				hash_table_input(ht2,msg_hash,KeyID,ts,te,pubkey,message_cache,Mac);
 			}
 			else
 			{
@@ -260,8 +260,8 @@ void* recv_message (void *sock){
 					//hash_table_input(ht2,msg_hash,ts,te,pubkey,message_cache,Mac);
                 		}
 				queue_msg_rear = insertElem(queue_msg_rear, message_recv);
-				hash_table_input(ht,KeyID,ts,te,pubkey,message_cache,Mac);
-                                hash_table_input(ht2,msg_hash,ts,te,pubkey,message_cache,Mac);
+				hash_table_input(ht,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
+                                hash_table_input(ht2,msg_hash,KeyID,ts,te,pubkey,message_cache,Mac);
 			}
 
                 }

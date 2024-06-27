@@ -24,12 +24,13 @@ struct HashTable_PC* hash_table_new()
         return ht;
 }
 
-int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* message_cache, unsigned char* message_cache_mac){
+int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* KeyID, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* message_cache, unsigned char* message_cache_mac){
         int i = hash_33(key) % TABLE_SIZE;
         struct valid_PC* p = ht->table[i];
         struct valid_PC* prep = p;
         struct valid_PC* ps = p;
         char* keystr = malloc(strlen(key)+1);
+	char* KeyIDstr = malloc(strlen(KeyID)+1);
         char* tsstr = malloc(strlen(ts)+1);
         char* testr = malloc(strlen(te)+1);
         char* pubkeystr = malloc(strlen(pubkey)+1);
@@ -38,12 +39,14 @@ int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char*
         struct valid_PC* valid_PC = (struct valid_PC*)calloc(1,sizeof(struct valid_PC));
         valid_PC->next == NULL;
         strcpy(keystr,key);
+	strcpy(KeyIDstr,KeyID);
         strcpy(tsstr,ts);
         strcpy(testr,te);
         strcpy(pubkeystr,pubkey);
         strcpy(message_cachestr,message_cache);
         strcpy(message_cache_macstr,message_cache_mac);
-        valid_PC->KeyID = keystr;
+        valid_PC->key = keystr;
+	valid_PC->KeyID = KeyIDstr;
         valid_PC->ts = tsstr;
         valid_PC->te = testr;
         valid_PC->pubkey = pubkeystr;
