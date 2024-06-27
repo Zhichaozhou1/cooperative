@@ -59,7 +59,7 @@ int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char*
         while(p!=NULL)
         {
                 prep = p;
-                if(strcmp(key,p->KeyID)==0)
+                if(strcmp(key,p->key)==0)
                 {
                         p->message_cache = message_cachestr;
                         p->message_cache_mac = message_cache_macstr;
@@ -91,7 +91,7 @@ int hash_table_get(struct HashTable_PC* ht, char* key, char* pubkey){
                 //printf("%d\n",num);
                 //printf("1");
                 //fflush(stdout);
-                if (strcmp(p->KeyID,key) == 0) {
+                if (strcmp(p->key,key) == 0) {
                         strcpy(pubkey,p->pubkey);
                         return 1;
                 }
@@ -116,9 +116,31 @@ int hash_table_get_message(struct HashTable_PC* ht, char* key, char* message_cac
         struct valid_PC* p = ht->table[i];
         while(p)
         {
-                if (strcmp(p->KeyID,key) == 0) {
+                if (strcmp(p->key,key) == 0) {
                         strcpy(message_cache,p->message_cache);
                         strcpy(message_cache_mac,p->message_cache_mac);
+                        return 1;
+                }
+                if(p->next!=NULL)
+                {
+                        p = p->next;
+                }
+                else
+                {
+                        return 0;
+                }
+        }
+        return 0;
+}
+
+int hash_table_get_PC(struct HashTable_PC* ht, char* key, char* KeyID){
+        int i = hash_33(key) % TABLE_SIZE;
+        int num=0;
+        struct valid_PC* p = ht->table[i];
+        while(p)
+        {
+                if (strcmp(p->key,key) == 0) {
+                        strcpy(KeyID,p->KeyID);
                         return 1;
                 }
                 if(p->next!=NULL)
@@ -140,7 +162,7 @@ int hash_table_delete(struct HashTable_PC* ht, char* key)
     struct valid_PC *current = ht->table[index];
     struct valid_PC *prev = NULL;
     while (current != NULL) {
-        if (strcmp(current->KeyID, key) == 0) {
+        if (strcmp(current->key, key) == 0) {
             if (prev) {
                 prev->next = current->next;
             } else {

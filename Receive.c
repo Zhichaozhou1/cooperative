@@ -22,7 +22,9 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
 	char message_cache[1024] = {'\0'};
 	char message_hash[65] = {'\0'};
         char zero_buffer[1024] = {'\0'};
-	char message_cache_coorperative[1024] = {'\0'};
+	char KeyID_cooperative[10] = {'\0'};
+	char pubkey_cooperative[1024] = {'\0'};
+	char message_cache_cooperative[1024] = {'\0'};
 	char Mac_cooperative[1024] = {'\0'};
         SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, message_hash, base64_receive, message_cache, num);
 	/* Get receiving message segment */
@@ -306,11 +308,16 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
 		hash_table_input(ht3,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
 		for(int hash_index = 0; hash_index++; hash_index<num)
 		{
-			if(hash_table_get_message(ht2, hashes[hash_index], message_cache_coorperative, Mac_cooperative) == 1)
+			if(hash_table_get_PC(ht2, hashes[hash_index], KeyID_cooperative) == 1)
 			{
-				insertElem(queue2_msg_rear, message_cache_coorperative);
-				hash_table_delete(ht2, hashes[hash_index]);
+				if(hash_table_get(ht,KeyID_cooperative,pubkey_cooperative) == 1)
+				{
+					hash_table_get_message(ht2, hashes[hash_index], message_cache_cooperative, Mac_cooperative);
+					insertElem(queue2_msg_rear, message_cache_cooperative);
+					//hash_table_delete(ht2, hashes[hash_index]);
+				}
 			}
+			hash_table_delete(ht2, hashes[hash_index]);
 		}
                 break;
         default:

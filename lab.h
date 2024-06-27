@@ -69,6 +69,7 @@ int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char*
 //int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* ts, unsigned char* te, unsigned char* pubkey);
 int hash_table_get(struct HashTable_PC* ht, char* key, char* pubkey);
 int hash_table_get_message(struct HashTable_PC* ht, char* key, char* message_cache, char* message_cache_mac);
+int hash_table_get_PC(struct HashTable_PC* ht, char* key, char* KeyID);
 int decryption(unsigned char* base64_receive, struct HashTable_PC* Pcert);
 int verify(EC_KEY *ec_key, const unsigned char *sig, int siglen, unsigned char message[]);
 int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, struct HashTable_PC* ht2, struct HashTable_PC* ht3, int num, queue *queue2_msg_rear, queue *queue3_msg_header);
