@@ -26,7 +26,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
 	char pubkey_cooperative[1024] = {'\0'};
 	char message_cache_cooperative[1024] = {'\0'};
 	char Mac_cooperative[1024] = {'\0'};
-        SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, message_hash, base64_receive, message_cache, num);
+        //SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, message_hash, base64_receive, message_cache, num);
 	/* Get receiving message segment */
         /*for(i = 0, j = 0; i < strlen(base64_receive); i++, j++)
         {
@@ -173,7 +173,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
         //printf("Received message is:\n%s\n", message_decode);
         int doespcstore = 0;
         int times = 1;
-        doespcstore = hash_table_get(ht,KeyID,pubkey);
+        doespcstore = hash_table_get_pubkey(ht,KeyID,pubkey);
         pubkey_decode_len = base64_decode(pubkey, strlen(pubkey), pubkey_decode);
         if (doespcstore == 0)                             // If PCSave is not same as PC receive
         {/* Verify Signatuer, if correct save as PCSave */
@@ -305,12 +305,12 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
                 break;
         case 1:
                 printf("Beacon Verification Success.\n");
-		hash_table_input(ht3,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
-		for(int hash_index = 0; hash_index++; hash_index<num)
+		//hash_table_input(ht3,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
+		/*for(int hash_index = 0; hash_index++; hash_index<num)
 		{
-			if(hash_table_get_PC(ht2, hashes[hash_index], KeyID_cooperative) == 1)
+			if(hash_table_get_pubkey(ht2, hashes[hash_index], KeyID_cooperative) == 1)
 			{
-				if(hash_table_get(ht,KeyID_cooperative,pubkey_cooperative) == 1)
+				if(hash_table_get_pubkey(ht,KeyID_cooperative,pubkey_cooperative) == 1)
 				{
 					hash_table_get_message(ht2, hashes[hash_index], message_cache_cooperative, Mac_cooperative);
 					insertElem(queue2_msg_rear, message_cache_cooperative);
@@ -318,7 +318,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
 				}
 			}
 			hash_table_delete(ht2, hashes[hash_index]);
-		}
+		}*/
                 break;
         default:
                 break;
@@ -406,7 +406,7 @@ int verify(EC_KEY *ec_key, const unsigned char *sig, int siglen, unsigned char m
  *char mID message ID
 */
 
-int SplitMessage(char message[], char flag[], char hash_key[], char message_sig[], char KeyID[], char pubkey[], char ts[], char te[], char cert_sig[], char mID[])
+int SplitMessage(char message_receive[], char message[], char flag[], char hash_key[], char message_sig[], char KeyID[], char pubkey[], char ts[], char te[], char cert_sig[], char mID[])
 {
 	int i = 0;
 	int j = 0;

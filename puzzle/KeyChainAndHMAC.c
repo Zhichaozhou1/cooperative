@@ -49,18 +49,18 @@ int key_init(unsigned char *key_origin, int len){
 int generate_key_chain(const unsigned char* key, int n, unsigned char* key_chain[]){
         int i = 0, j = 0;
 
-        unsigned char char_plus = '1';
+        //unsigned char char_plus = '1';
 
         unsigned char* key_temp = (unsigned char*)malloc((hex_cnt_sha256+1) * sizeof(char)); //original K plus a '1' in the end, size=65
         unsigned char* hash_temp = (unsigned char*)malloc(SHA256_DIGEST_LENGTH * sizeof(char)); //store the hash output, size=32
-        key_chain[n] = (unsigned char*)malloc((hex_cnt_sha256) * sizeof(char)); //store the %02x results of hash
+        key_chain[n] = (unsigned char*)malloc((hex_cnt_sha256+1) * sizeof(char)); //store the %02x results of hash
         strcpy(key_chain[n], key); //store the input key value into the last position of key_chain
 
         //loop for generating the key chain
         for (i=n-1; i>=0; i--){
                 key_chain[i] = (unsigned char*)malloc((hex_cnt_sha256+1) * sizeof(char)); //store the %02x results of hash
                 strcpy(key_temp, key_chain[i+1]); //the data to be hashed
-                key_temp[hex_cnt_sha256] = char_plus; //append char '1' to the end
+                //key_temp[hex_cnt_sha256] = char_plus; //append char '1' to the end
                 size_t len = strlen(key_temp);
                 SHA256((const unsigned char*) key_temp, len, hash_temp); //get the hash output
 /*              for (j = 0; j < SHA256_DIGEST_LENGTH ; j++){
@@ -71,10 +71,12 @@ int generate_key_chain(const unsigned char* key, int n, unsigned char* key_chain
                 for (j = 0; j < SHA256_DIGEST_LENGTH ; j++){
                     snprintf(key_chain[i]+2*j, hex_cnt_sha256+1-2*j, "%02x", hash_temp[j]);
                 }
+		//printf("%s\n",key_chain[i]);
 //              key_chain[i][hex_cnt_sha256] = '\0';
         }
         free(key_temp);
         free(hash_temp);
+	//printf("%s\n",key_chain[i]);
         return True;
 }
 

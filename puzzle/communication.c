@@ -32,15 +32,15 @@ typedef struct struct_recv_sock{
 
 Sock_this sock_this = {-1};
 Sock_target sock_target = {-1};
-struct HashTable_PC* ht;
-struct HashTable_PC* ht2;
-struct HashTable_PC* ht3;
-queue *queue_msg_header = NULL; //linked list header
-queue *queue_msg_rear = NULL; //linked list rear
-queue *queue2_msg_header = NULL; //linked list header
-queue *queue2_msg_rear = NULL; //linked list rear
-queue *queue3_msg_header = NULL; //linked list header
-queue *queue3_msg_rear = NULL; //linked list rear
+struct HashTable_PC* ht;    //valid PC with KeyID
+struct HashTable_PC* ht2;   //message before pre-validation with mID
+struct HashTable_PC* ht3;   //message remove from queue1
+queue *queue_msg_header = NULL; //linked list header of message before pre-validation
+queue *queue_msg_rear = NULL;
+queue *queue2_msg_header = NULL; //linked list header of message after pre-validation
+queue *queue2_msg_rear = NULL;
+queue *queue3_msg_header = NULL; //linked list header of message to solve the puzzle
+queue *queue3_msg_rear = NULL;
 struct timespec time_PC_gen;
 struct timespec time_recv[size_queue_max];
 struct timespec time_process[size_queue_max];
@@ -80,13 +80,15 @@ int main(int argc, char* argv[]){
         void *recv_message(void*);
         void *send_message(void*);
         //Create 3 threads
-        pthread_t th_recv, th_send, th_process;
+        pthread_t th_recv, th_send, th_process, th_solve;
         pthread_create(&th_send, NULL, send_message, (void *)socket_target);
-        pthread_create(&th_recv, NULL, recv_message, (void *)socket_this);
-        pthread_create(&th_process, NULL, process, NULL);
-        pthread_join(th_recv, NULL);
+        //pthread_create(&th_recv, NULL, recv_message, (void *)socket_this);
+        //pthread_create(&th_process, NULL, process, NULL);
+	pthread_create(&th_solve, NULL, solve_puzzle, (void *)socket_target);
+        //pthread_join(th_recv, NULL);
         pthread_join(th_send, NULL);
-        pthread_join(th_process, NULL);
+        //pthread_join(th_process, NULL);
+	pthread_join(th_solve, NULL);
         return 0;
 }
 
@@ -161,7 +163,7 @@ void* recv_message (void *sock){
         int hash_len;
         char message_recv[size_message] = {'\0'}; //Buffer storing received messages
 	char message[100] = {'\0'};
-	char flag[100] = {'\0'};
+	char flag_recv[100] = {'\0'};
 	char hash_key[65] = {'\0'};
 	char message_sig[129] = {'\0'};
 	char KeyID[10] = {'\0'};
@@ -170,8 +172,17 @@ void* recv_message (void *sock){
 	char te[10] = {'\0'};
 	char cert_sig[129] = {'\0'};
 	char mID[65] = {'\0'};
-	int doespcstore = 0;
-	int doesmessagestore = 0;
+	char hash_key_cached[65] = {'\0'};
+	char message_cached[1024] = {'\0'};
+	char puzzle[1024] = {'\0'};
+	int keycache = 0;
+	int messagecache = 0;
+	unsigned char hash_hash_key[1024] = {'\0'};
+        unsigned char hash_hash_key_encode[1024] = {'\0'};
+        unsigned char hash_puzzle[1024] = {'\0'};
+        unsigned char hash_puzzle_encode[1024] = {'\0'};
+	int hash_hash_key_length;
+	int hash_puzzle_length;
         while(1){
                 int flag;
                 flag = recvfrom(sock_this->sock, message_recv, size_message, 0,
@@ -186,8 +197,8 @@ void* recv_message (void *sock){
                         printf("Receiving failed.\n");
                         exit(1);
                 }
-		SplitMessage(message, flag, hash_key, message_sig, KeyID, pubkey, ts, te, cert_sig, mID);
-                if(strcmp(flag,"RSU") == 0)//from RSU
+		SplitMessage(message_recv, message, flag_recv, hash_key, message_sig, KeyID, pubkey, ts, te, cert_sig, mID);
+                if(strcmp(flag_recv,"RSU") == 0)//from RSU
                 {
 			//printf("Message received: %s\n",message_recv);
                         EVP(message_recv,hash,&hash_len);
@@ -200,70 +211,49 @@ void* recv_message (void *sock){
                                 strcpy(challenge,message_recv);
                         }
                 }
-                else if (strcmp(flag,"Solution") == 0)
+                else if (strcmp(flag_recv,"Solution") == 0)
 		{
-			
+			messagecache = hash_table_get_KeyID(ht2, mID, message_cached);
+			if(messagecache == 1)
+			{
+				strcpy(puzzle,message_cached);
+				strcat(puzzle,"|");
+				strcat(puzzle, message);
+				strcat(puzzle,"|");
+                                strcat(puzzle, hash_key);
+				EVP(puzzle,hash_puzzle, &hash_puzzle_length);
+                                for (int j = 0; j < 32 ; j++){
+                                        snprintf(hash_puzzle_encode+2*j, 64+1-2*j, "%02x", hash_puzzle[j]);
+                                }
+				if(hash_puzzle_encode[63]=='0'&&hash_puzzle_encode[62]=='0')
+                		{
+					printf("puzzle-based pre-validation success!\n");
+					hash_table_input_MID(ht3, mID, message_cached);
+					hash_table_delete(ht2, mID);
+                        		queue2_msg_rear = insertElem(queue2_msg_rear, message_cached);
+                		}
+			}
 		}
 		else
                 {
-                        /*for(int i= 0; i < strlen(message_recv); i++)
-                        {
-                                if(message_recv[i] != '|')
-                                {
-                                        challenge_recv[i] = message_recv[i];
-                                }
-                                else
-                                {
-                                        break;
-                                }
-                        }
-                        if(strcmp(challenge_recv,challenge)==0)
-                        {
-                                EVP(message_recv,hash,&hash_len);
-                                for (int j = 0; j < 32 ; j++){
-                                        snprintf(hash_encode+2*j, sizeof(hash_encode)-2*j, "%02x", hash[j]);
-                                }
-                                if(hash_encode[63]=='0'&&hash_encode[62]=='0')//&&(digest_encode[61]=='0'))
-                                {
-                                        printf("pre-authentication pass!");
-                                        queue_msg_rear = insertElem(queue_msg_rear, message_recv);
-                                        //clock_gettime(CLOCK_REALTIME, &(time_recv[cnt_msg_recv]));
-                                        cnt_msg_recv++;
-                                }
-                        }*/
-			SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, msg_hash, message_recv, message_cache, num);
-			doespcstore = hash_table_get(ht, KeyID, pubkey);
-			if (doespcstore == 0)
+			keycache = hash_table_get_hashkey(ht, KeyID, hash_key_cached);
+			if (keycache == 0)
 			{
 				queue_msg_rear = insertElem(queue_msg_rear, message_recv);
-				hash_table_input(ht,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
-				hash_table_input(ht2,msg_hash,KeyID,ts,te,pubkey,message_cache,Mac);
+				hash_table_input_MID(ht2, mID, message_recv);
 			}
 			else
 			{
-				int flag_tesla = 0;
-                		unsigned char message_cache_previous[1024] = {'\0'};
-                		unsigned char message_cache_mac[1024] = {'\0'};
-                		doesmessagestore = hash_table_get_message(ht, KeyID, message_cache_previous, message_cache_mac);
-                		if(doesmessagestore == 1)
-				{
-					flag_tesla = verify_HMAC((const void*)hash_key, strlen((char*)hash_key), message_cache_previous, strlen((char*)message_cache_previous), (char*)message_cache_mac);
+                		EVP(hash_key,hash_hash_key, &hash_hash_key_length);
+                		for (int j = 0; j < 32 ; j++){
+                        		snprintf(hash_hash_key_encode+2*j, 64+1-2*j, "%02x", hash_hash_key[j]);
                 		}
-				/*else
-				{
-					hash_table_input(ht,KeyID,ts,te,pubkey,message_cache,Mac);
-					hash_table_input(ht2,msg_hash,ts,te,pubkey,message_cache,Mac);
-				}*/
-				if(flag_tesla == 1)
+				if(strcmp(hash_hash_key_encode,hash_key_cached) == 0)
                 		{
-                        		printf("TESLA success!\n");
-                        		//printf("%s\n",message_cache_mac);
-                        		//hash_table_input(ht,KeyID,ts,te,pubkey,message_cache,Mac);
-					//hash_table_input(ht2,msg_hash,ts,te,pubkey,message_cache,Mac);
+                        		printf("hash chain-based pre-validation success!\n");
+                        		hash_table_input(ht,KeyID,KeyID,ts,te,pubkey,hash_key);
                 		}
-				queue_msg_rear = insertElem(queue_msg_rear, message_recv);
-				hash_table_input(ht,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
-                                hash_table_input(ht2,msg_hash,KeyID,ts,te,pubkey,message_cache,Mac);
+				queue2_msg_rear = insertElem(queue2_msg_rear, message_recv);
 			}
 
                 }
@@ -274,6 +264,7 @@ void* recv_message (void *sock){
 /*Function to send messages*/
 void* send_message (void*sock){
         char beacon_send[1024] = {'\0'};
+	char index[10] = {'\0'}; //index of the key on the chain
         Sock_target *sock_target = (Sock_target *)sock;
         char* message_send = sock_target->message;
 	int message_num = atoi(message_send);
@@ -286,10 +277,9 @@ void* send_message (void*sock){
 	unsigned char *key_origin = NULL;
         int len = 64;
         key_origin = malloc((len+1)*sizeof(char));
-	unsigned char* tesla_key_chain[600];
-	unsigned char tesla_key_send[65]={'\0'};
-        unsigned char tesla_key_use[65]={'\0'};
-	for(int i=0;i<100;i++){tesla_key_chain[i]=malloc(64*sizeof(char));}
+	unsigned char* key_chain[600];
+	unsigned char key_send[65]={'\0'};
+	for(int i=0;i<100;i++){key_chain[i]=malloc(64*sizeof(char));}
 	//int number=0;
 	//printf("%s\n",message_send);
         char message_base64_send[size_message] = {'\0'};
@@ -308,20 +298,22 @@ void* send_message (void*sock){
 			PCGen(sock_target->prikey_addr,sock_target->pubkey_addr);
 			//printf("PC regen\n");
 			key_init(key_origin, len);//generate tesla key chain
-                        generate_key_chain(key_origin, 600, tesla_key_chain);
+                        generate_key_chain(key_origin, 600, key_chain);
 			//printf("%s\n", tesla_key_chain[1]);
 			sleep = rand()%100;
 			num = 0;
 		}
-		strcpy(tesla_key_send,tesla_key_chain[num%600]);
-                strcpy(tesla_key_use,tesla_key_chain[num%600+1]);
+		strcpy(key_send,key_chain[num]);
+		sprintf(index, "%d", num);
 		num++;
-                strcpy(beacon_send,challenge);
-                strcat(beacon_send,"|");
-                strcat(beacon_send,message_send);
+                //strcpy(beacon_send,challenge);
+                //strcat(beacon_send,"|");
+                strcpy(beacon_send,message_send);
 		strcat(beacon_send,"|");
-		strcat(beacon_send,tesla_key_send);
-                solution_delay[num-1] = message_sign(beacon_send,message_base64_send,tesla_key_use,1,sock_target->prikey_addr,sock_target->pubkey_addr);
+		strcat(beacon_send,index);
+		strcat(beacon_send,"|");
+		strcat(beacon_send,key_send);
+                solution_delay[num-1] = message_sign(beacon_send,message_base64_send,1,sock_target->prikey_addr,sock_target->pubkey_addr);
 		//usleep(39.2*1000);
 		clock_gettime(CLOCK_REALTIME, &time_now);
                 sending_cost=(time_now.tv_sec-last_send.tv_sec)*1000.0+(time_now.tv_nsec-last_send.tv_nsec)/1000000.0;
@@ -341,6 +333,7 @@ void* send_message (void*sock){
 		//printf("%dth message send at:%ld.%ld\n",num,last_send.tv_sec,last_send.tv_nsec);
 		//clock_gettime(CLOCK_REALTIME, &last_send);
 		//printf("%dth message send at:%ld.%ld!\n",num,last_send.tv_sec,last_send.tv_nsec);
+		queue3_msg_rear = insertElem(queue3_msg_rear, message_base64_send);
 		printf("%dth message send:%s\n",num,message_base64_send);
                 //usleep(interval_sending_ms*1000);
 		/*if(num==1200)
@@ -397,8 +390,8 @@ void *process(){
                 	temp_plus = queue2_msg_header;
                 	msg_temp = temp->next->str;
 		}
-		SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, msg_hash, msg_temp, message_cache, num);
-		if(hash_table_get(ht3, KeyID, pubkey) == 1)
+		//SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, msg_hash, msg_temp, message_cache, num);
+		if(hash_table_get_pubkey(ht, KeyID, pubkey) == 1)
 		{
 			continue;
 		}
@@ -446,6 +439,34 @@ void *process(){
                         fclose(fp);
                 }
         }
+}
+
+void *solve_puzzle(void*sock)
+{
+	queue *temp;
+	char *msg_temp;
+	Sock_target *sock_target = (Sock_target *)sock;
+	while(1){
+		if(queue3_msg_header->next==NULL)
+		{
+			continue;
+		}
+		else
+		{
+			temp = queue3_msg_header;
+			msg_temp = temp->next->str;
+		}
+		if (sendto(sock_target->sock, msg_temp, strlen(msg_temp)+1, 0,
+                                (struct sockaddr *)&(sock_target->addr_target), sock_target->addr_len_target )  < 0){
+        		printf("Sending failed.\n");
+                	//printf("Error sending packet: Error %d.\n", errno);
+                	exit(1);
+        	}
+		printf("%s\n",msg_temp);
+		queue3_msg_header = queue3_msg_header->next;
+        	queue3_msg_header->str = NULL;
+        	free(temp);
+	}
 }
 
 queue * initLink(){

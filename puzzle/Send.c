@@ -1,7 +1,7 @@
 #include "lab.h"
 extern struct timespec time_PC_gen;
 //double message_sign(unsigned char beacon[], unsigned char base64message[], int flag, unsigned char* prikey_addr, unsigned char* pubkey_addr)
-double message_sign(unsigned char beacon[], unsigned char base64message[], unsigned char tesla_key_use[], int flag, unsigned char* prikey_addr, unsigned char* pubkey_addr)
+double message_sign(unsigned char beacon[], unsigned char base64message[], int flag, unsigned char* prikey_addr, unsigned char* pubkey_addr)
 {
         char *random_seed = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
         int seed_length = strlen(random_seed);
@@ -59,7 +59,7 @@ double message_sign(unsigned char beacon[], unsigned char base64message[], unsig
                 sprintf(ss,"%c",random_seed[(rand()%seed_length)]);
                 strcat(Base64Message,ss);
         }
-        int beacon_length = strlen(Base64Message);
+        /*int beacon_length = strlen(Base64Message);
         while(1)
         {
                 EVP(Base64Message,hash_beacon, &hash_beacon_length);
@@ -85,7 +85,7 @@ double message_sign(unsigned char beacon[], unsigned char base64message[], unsig
                         Base64Message[beacon_length-2] = '!';
                         Base64Message[beacon_length-3] = Base64Message[beacon_length-3] + 1;
                 }
-        }
+        }*/
         strcpy(base64message, Base64Message);
         return 1;
 }
