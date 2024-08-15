@@ -82,10 +82,10 @@ int main(int argc, char* argv[]){
         //Create 3 threads
         pthread_t th_recv, th_send, th_process, th_solve;
         pthread_create(&th_send, NULL, send_message, (void *)socket_target);
-        //pthread_create(&th_recv, NULL, recv_message, (void *)socket_this);
+        pthread_create(&th_recv, NULL, recv_message, (void *)socket_this);
         //pthread_create(&th_process, NULL, process, NULL);
 	pthread_create(&th_solve, NULL, solve_puzzle, (void *)socket_target);
-        //pthread_join(th_recv, NULL);
+        pthread_join(th_recv, NULL);
         pthread_join(th_send, NULL);
         //pthread_join(th_process, NULL);
 	pthread_join(th_solve, NULL);
@@ -162,7 +162,7 @@ void* recv_message (void *sock){
         unsigned char challenge_recv[65] = {'\0'};
         int hash_len;
         char message_recv[size_message] = {'\0'}; //Buffer storing received messages
-	char message[100] = {'\0'};
+	/*char message[100] = {'\0'};
 	char flag_recv[100] = {'\0'};
 	char hash_key[65] = {'\0'};
 	char message_sig[129] = {'\0'};
@@ -171,7 +171,7 @@ void* recv_message (void *sock){
 	char ts[10] = {'\0'};
 	char te[10] = {'\0'};
 	char cert_sig[129] = {'\0'};
-	char mID[65] = {'\0'};
+	char mID[65] = {'\0'};*/
 	char hash_key_cached[65] = {'\0'};
 	char message_cached[1024] = {'\0'};
 	char puzzle[1024] = {'\0'};
@@ -185,6 +185,16 @@ void* recv_message (void *sock){
 	int hash_puzzle_length;
         while(1){
                 int flag;
+		char message[100] = {'\0'};
+        	char flag_recv[100] = {'\0'};
+        	char hash_key[65] = {'\0'};
+        	char message_sig[129] = {'\0'};
+        	char KeyID[10] = {'\0'};
+        	char pubkey[129] = {'\0'};
+        	char ts[10] = {'\0'};
+        	char te[10] = {'\0'};
+        	char cert_sig[129] = {'\0'};
+        	char mID[65] = {'\0'};
                 flag = recvfrom(sock_this->sock, message_recv, size_message, 0,
                                                                 (struct sockaddr *)&addr_others, (socklen_t *)&(sock_this->addr_len_this));
                 //the 4th argument is the source IP address
@@ -213,6 +223,7 @@ void* recv_message (void *sock){
                 }
                 else if (strcmp(flag_recv,"Solution") == 0)
 		{
+			//printf("solution receive:%s\n",mID);
 			messagecache = hash_table_get_KeyID(ht2, mID, message_cached);
 			if(messagecache == 1)
 			{
@@ -221,6 +232,7 @@ void* recv_message (void *sock){
 				strcat(puzzle, message);
 				strcat(puzzle,"|");
                                 strcat(puzzle, hash_key);
+				printf("%s\n",puzzle);
 				EVP(puzzle,hash_puzzle, &hash_puzzle_length);
                                 for (int j = 0; j < 32 ; j++){
                                         snprintf(hash_puzzle_encode+2*j, 64+1-2*j, "%02x", hash_puzzle[j]);
@@ -444,8 +456,12 @@ void *process(){
 void *solve_puzzle(void*sock)
 {
 	queue *temp;
-	char *msg_temp;
+	char msg_temp[1024] = {'\0'};
+	char solution[10] = {'\0'};
+	char msg_solution[1024] = {'\0'};
+	char mID[10] = {'\0'};
 	Sock_target *sock_target = (Sock_target *)sock;
+	int msg_length;
 	while(1){
 		if(queue3_msg_header->next==NULL)
 		{
@@ -454,15 +470,31 @@ void *solve_puzzle(void*sock)
 		else
 		{
 			temp = queue3_msg_header;
-			msg_temp = temp->next->str;
+			strcpy(msg_temp,temp->next->str);
 		}
-		if (sendto(sock_target->sock, msg_temp, strlen(msg_temp)+1, 0,
+		//strcat(msg_temp,"|");
+		msg_length = strlen(msg_temp);
+		strcpy(mID,msg_temp + msg_length - 8);
+		strcat(msg_temp,"|");
+		strcat(msg_temp,challenge);
+		strcat(msg_temp,"|");
+		solve(msg_temp,solution);
+		//printf("%s\n",solution);
+		strcpy(msg_solution,challenge);
+        	strcat(msg_solution,"|");
+        	strcat(msg_solution,"Solution");
+        	strcat(msg_solution,"|");
+		strcat(msg_solution,solution);
+		strcat(msg_solution,"|||||||");
+		strcat(msg_solution,mID);
+		strcat(msg_solution,"|");
+		if (sendto(sock_target->sock, msg_solution, strlen(msg_solution)+1, 0,
                                 (struct sockaddr *)&(sock_target->addr_target), sock_target->addr_len_target )  < 0){
         		printf("Sending failed.\n");
                 	//printf("Error sending packet: Error %d.\n", errno);
                 	exit(1);
         	}
-		printf("%s\n",msg_temp);
+		printf("%s\n",msg_solution);
 		queue3_msg_header = queue3_msg_header->next;
         	queue3_msg_header->str = NULL;
         	free(temp);

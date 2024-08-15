@@ -450,3 +450,53 @@ int Sign(EC_KEY *ec_key, unsigned char *sig, const unsigned char digest[], int d
         }
         return sign_len;
 }
+
+
+int solve(char* message, char* solution)
+{
+	char *random_seed = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        int seed_length = strlen(random_seed);
+        char ss[2] = {'\0'};
+	char hash_message[65] = {'\0'};
+	char hash_message_encode[65] = {'\0'};
+	char Srand[10] = {'\0'};
+	char message_solution[1024] = {'\0'};
+	int hash_message_length;
+	//strcpy(message_solution,message);
+	//sprintf(ss,"%c",random_seed[(rand()%seed_length)]);
+	//strcpy(Srand,ss);
+	for(int i = 1; i <= 8; i++){
+                sprintf(ss,"%c",random_seed[(rand()%seed_length)]);
+                strcat(message,ss);
+        }
+	//strcat(message_solution,Srand);
+	int message_length = strlen(message);
+	while(1)
+        {
+                EVP(message, hash_message, &hash_message_length);
+                for (int j = 0; j < 32 ; j++){
+                        snprintf(hash_message_encode+2*j, 64+1-2*j, "%02x", hash_message[j]);
+                }
+                if(hash_message_encode[63]=='0'&&hash_message_encode[62]=='0')//&&(digest_encode[61]=='0'))
+                {
+                        break;
+                }
+                if(message[message_length-1]!='z')
+                {
+                        message[message_length-1] = message[message_length-1] + 1;
+                }
+                else if(message[message_length-2]!='z')
+                {
+                        message[message_length-1] = '!';
+                        message[message_length-2] = message[message_length-2] + 1;
+                }
+                else
+                {
+                        message[message_length-1] = '!';
+                        message[message_length-2] = '!';
+                        message[message_length-3] = message[message_length-3] + 1;
+                }
+        }
+	strcpy(solution,message + message_length - 8);
+	return 1;
+}

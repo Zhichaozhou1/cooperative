@@ -80,4 +80,5 @@ unsigned char *HMAC_sha256(const void *key, int keylen, const unsigned char *dat
 int verify_HMAC(const void *key, int keylen, const unsigned char *data, int datalen, unsigned char *hmac_origin);
 int SplitMessage(char message_receive[], char message[], char flag[], char hash_key[], char message_sig[], char KeyID[], char pubkey[], char ts[], char te[], char cert_sig[], char mID[]);
 int hash_table_delete(struct HashTable_PC* ht, char* key);
+int solve(char* message, char* solution);
 #endif
