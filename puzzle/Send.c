@@ -325,7 +325,7 @@ int PCGen(unsigned char* prikey_addr,unsigned char* pubkey_addr)
                 return 0;
         }
         message_len = 4 + ts_string_len + te_string_len + pubkey_len;
-        unsigned char message[message_len];
+        unsigned char message[message_len+1];
         for(i = 0; i < 4; i++)
         {
                 message[i] = KeyID[i];
@@ -342,6 +342,8 @@ int PCGen(unsigned char* prikey_addr,unsigned char* pubkey_addr)
         {
                 message[i] = pubkey[j];
         }
+	message[message_len] = '\0';
+	//printf("%02x!\n",message);
         /* Sign Pseudonym */
         if(!SignMain(cert_key, message, signature_buff_pp, &sig_len))
         {
@@ -413,6 +415,11 @@ int SignMain(EC_KEY *ec_key, unsigned char message[], unsigned char *signature, 
                 printf("Error：EVP\n");
                 return 0;
         }
+	/*char hash_encode[100] = {'\0'};
+        for (int j = 0; j < 32 ; j++){
+                snprintf(hash_encode+2*j, sizeof(hash_encode)-2*j, "%02x", digest[j]);
+        }
+	printf("%s!\n",hash_encode);*/
         len  = Sign(ec_key, signature, digest, digest_len);
         if (len == -1)                                                  // Retrun -1 for error
         {

@@ -24,7 +24,7 @@ struct HashTable_PC* hash_table_new()
         return ht;
 }
 
-int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* KeyID, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* hash_key){
+int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* KeyID, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* hash_key, struct timespec time_recv){
         int i = hash_33(key) % TABLE_SIZE;
         struct valid_PC* p = ht->table[i];
         struct valid_PC* prep = p;
@@ -49,6 +49,7 @@ int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char*
         valid_PC->te = testr;
         valid_PC->pubkey = pubkeystr;
 	valid_PC->hash_key = hash_keystr;
+	valid_PC->time_recv = time_recv;
         while(p!=NULL)
         {
                 prep = p;
@@ -71,7 +72,7 @@ int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char*
         return 0;
 }
 
-int hash_table_input_MID(struct HashTable_PC* ht, unsigned char* key, unsigned char* message){
+int hash_table_input_MID(struct HashTable_PC* ht, unsigned char* key, unsigned char* message, struct timespec time_recv){
         int i = hash_33(key) % TABLE_SIZE;
         struct valid_PC* p = ht->table[i];
         struct valid_PC* prep = p;
@@ -84,6 +85,7 @@ int hash_table_input_MID(struct HashTable_PC* ht, unsigned char* key, unsigned c
         strcpy(KeyIDstr,message);
         valid_PC->key = keystr;
         valid_PC->KeyID = KeyIDstr;
+	valid_PC->time_recv = time_recv;
         while(p!=NULL)
         {
                 prep = p;
@@ -171,6 +173,29 @@ int hash_table_get_hashkey(struct HashTable_PC* ht, char* key, char* hash_key){
         {
                 if (strcmp(p->key,key) == 0) {
                         strcpy(hash_key,p->hash_key);
+                        return 1;
+                }
+                if(p->next!=NULL)
+                {
+                        p = p->next;
+                }
+                else
+                {
+                        return 0;
+                }
+        }
+        return 0;
+}
+
+int hash_table_get_time(struct HashTable_PC* ht, char* key, struct timespec* time_recv){
+        int i = hash_33(key) % TABLE_SIZE;
+        int num=0;
+        struct valid_PC* p = ht->table[i];
+        while(p)
+        {
+                if (strcmp(p->key,key) == 0) {
+                        //strcpy(hash_key,p->hash_key);
+			*time_recv = p -> time_recv;
                         return 1;
                 }
                 if(p->next!=NULL)

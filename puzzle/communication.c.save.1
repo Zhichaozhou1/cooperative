@@ -235,24 +235,19 @@ void* recv_message (void *sock){
 				strcat(puzzle, message);
 				strcat(puzzle,"|");
                                 strcat(puzzle, hash_key);
-				//printf("%s\n",puzzle);
+				printf("%s\n",puzzle);
 				EVP(puzzle,hash_puzzle, &hash_puzzle_length);
                                 for (int j = 0; j < 32 ; j++){
                                         snprintf(hash_puzzle_encode+2*j, 64+1-2*j, "%02x", hash_puzzle[j]);
                                 }
 				if(hash_puzzle_encode[63]=='0'&&hash_puzzle_encode[62]=='0')
                 		{
-					//printf("puzzle-based pre-validation success!\n");
-					struct timespec time_recv;
-					hash_table_input_MID(ht3, mID, message_cached, time_recv);
-					hash_table_get_time(ht2, mID, &time_recv);
-					//printf("recv:%ld,%ld\n, time_recv.tv_sec, time_recv.tv_nsec");
-					time_recv_queue2[cnt_msg_recv_queue2] = time_recv;
-					//printf("recv:%ld,%ld, %d\n", time_recv_queue2[cnt_msg_end_queue2].tv_sec,  time_recv_queue2[cnt_msg_end_queue2].tv_nsec, cnt_msg_end_queue2);
+					printf("puzzle-based pre-validation success!\n");
+					hash_table_input_MID(ht3, mID, message_cached);
 					hash_table_delete(ht2, mID);
+					clock_gettime(CLOCK_REALTIME, &(time_recv_queue2[cnt_msg_recv_queue2]));
+                        		cnt_msg_recv_queue2++;
                         		queue2_msg_rear = insertElem(queue2_msg_rear, message_cached);
-					//clock_gettime(CLOCK_REALTIME, &(time_recv_queue2[cnt_msg_recv_queue1]));
-                                	cnt_msg_recv_queue2++;
                 		}
 			}
 		}
@@ -263,28 +258,23 @@ void* recv_message (void *sock){
 			{
 				queue_msg_rear = insertElem(queue_msg_rear, message_recv);
 				clock_gettime(CLOCK_REALTIME, &(time_recv_queue1[cnt_msg_recv_queue1]));
-				//printf("recv1:%ld,%ld, %d\n", time_recv_queue1[cnt_msg_end_queue1].tv_sec, time_recv_queue1[cnt_msg_end_queue1].tv_nsec, cnt_msg_end_queue1);
-				//clock_gettime(CLOCK_REALTIME, &(time_recv_queue1[cnt_msg_recv_queue1]));
-                        	//cnt_msg_recv_queue1++;
-				hash_table_input_MID(ht2, mID, message_recv, time_recv_queue1[cnt_msg_recv_queue1]);
-				cnt_msg_recv_queue1++;
+                        	cnt_msg_recv_queue1++;
+				hash_table_input_MID(ht2, mID, message_recv);
 			}
 			else
 			{
-				//clock_gettime(CLOCK_REALTIME, &(time_recv_queue2[cnt_msg_recv_queue2]));
                 		EVP(hash_key,hash_hash_key, &hash_hash_key_length);
                 		for (int j = 0; j < 32 ; j++){
                         		snprintf(hash_hash_key_encode+2*j, 64+1-2*j, "%02x", hash_hash_key[j]);
                 		}
 				if(strcmp(hash_hash_key_encode,hash_key_cached) == 0)
                 		{
-                        		//printf("hash chain-based pre-validation success!\n");
-                        		clock_gettime(CLOCK_REALTIME, &(time_recv_queue2[cnt_msg_recv_queue2]));
-					hash_table_input(ht,KeyID,KeyID,ts,te,pubkey,hash_key,time_recv_queue2[cnt_msg_recv_queue2]);
-					queue2_msg_rear = insertElem(queue2_msg_rear, message_recv);
-					//clock_gettime(CLOCK_REALTIME, &(time_recv_queue2[cnt_msg_recv_queue2]));
-                                	cnt_msg_recv_queue2++;
-				}
+                        		printf("hash chain-based pre-validation success!\n");
+                        		hash_table_input(ht,KeyID,KeyID,ts,te,pubkey,hash_key);
+                		}
+				clock_gettime(CLOCK_REALTIME, &(time_recv_queue2[cnt_msg_recv_queue2]));
+                        	cnt_msg_recv_queue2++;
+				queue2_msg_rear = insertElem(queue2_msg_rear, message_recv);
 			}
 
                 }
@@ -365,7 +355,7 @@ void* send_message (void*sock){
 		//clock_gettime(CLOCK_REALTIME, &last_send);
 		//printf("%dth message send at:%ld.%ld!\n",num,last_send.tv_sec,last_send.tv_nsec);
 		queue3_msg_rear = insertElem(queue3_msg_rear, message_base64_send);
-		//printf("%dth message send:%s\n",num,message_base64_send);
+		printf("%dth message send:%s\n",num,message_base64_send);
                 //usleep(interval_sending_ms*1000);
 		/*if(num==1200)
 		{
@@ -384,6 +374,7 @@ void* send_message (void*sock){
 
 void *process(){
         int num=0;
+	int hash_num = 5;
 	queue *temp;
 	queue *temp_plus;
 	char *msg_temp;
@@ -401,7 +392,6 @@ void *process(){
 	int flag_queue = 0;
 	int flag=0;
 	struct timespec time_now;
-	double process_latency[size_queue_max];
         while(1){
                 int expire=0;
                 //Skip the process if there is no message in the linked list (header->next is NULL)
@@ -428,12 +418,12 @@ void *process(){
                 	msg_temp = temp->next->str;
 		}
 		SplitMessage(msg_temp, message, msg_flag, hash_key, message_sig, KeyID, pubkey, ts, te, cert_sig, mID);
-		if(hash_table_get_KeyID(ht3, KeyID, msg_pass) == 1)
-               	{
-			cnt_msg_end_queue1++;
-                       	continue;
-                }
 		//SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, msg_hash, msg_temp, message_cache, num);
+		if(hash_table_get_KeyID(ht3, KeyID, msg_pass) == 1) //already remove from queue1 to queue2
+		{
+			cnt_msg_end_queue1++;
+			continue;
+		}
                 //queue *temp = queue_msg_header;
                 //queue *temp_plus = queue_msg_header;
                 //char *msg_temp = temp->next->str;
@@ -442,21 +432,11 @@ void *process(){
                 flag = message_process(msg_temp, ht); //Verify messages
 			//printf("1\n");
                 //}
+		clock_gettime(CLOCK_REALTIME, &time_now);
                 if (flag == 1){
-                        //printf("Verification successful!\n");
-			clock_gettime(CLOCK_REALTIME, &time_now);
-			if(flag_queue == 0)
-			{
-				hash_table_delete(ht2, mID);
-				//printf("q1:%ld,%ld\n", time_recv_queue1[cnt_msg_end_queue1].tv_sec,  time_recv_queue1[cnt_msg_end_queue1].tv_nsec);
-				process_latency[num] = (time_now.tv_sec - time_recv_queue1[cnt_msg_end_queue1].tv_sec)*THOUSAND + (time_now.tv_nsec - time_recv_queue1[cnt_msg_end_queue1].tv_nsec)/MILLION;
-			}
-			if(flag_queue == 1)
-			{
-				//printf("q2:%ld,%ld,%d\n", time_recv_queue2[cnt_msg_end_queue2].tv_sec,  time_recv_queue2[cnt_msg_end_queue2].tv_nsec, cnt_msg_end_queue2);
-				process_latency[num] = (time_now.tv_sec - time_recv_queue2[cnt_msg_end_queue2].tv_sec)*THOUSAND + (time_now.tv_nsec - time_recv_queue2[cnt_msg_end_queue2].tv_nsec) / MILLION;
-			}
-			num++;
+                        num++;
+                        printf("Verification successful!\n");
+			
 			//hash_table_input(ht3,KeyID,ts,te,pubkey,message_cache,Mac);
                 } else if (flag == 0){
                         num++;
@@ -464,23 +444,27 @@ void *process(){
                 } else if (flag == -1){
                         printf("Other errors.\n");
                 }
+                //Get the end time of messages
+                //clock_gettime(CLOCK_REALTIME, &(time_end[cnt_msg_end]));
                 /*if(flag==1){
                         msg_delay[valid_msg_end] = (time_end[cnt_msg_end].tv_sec- time_recv[cnt_msg_end].tv_sec)*1000 + (time_end[cnt_msg_end].tv_nsec - time_recv[cnt_msg_end].tv_nsec)/MILLION;
                         valid_msg_end++;
                 }*/
+                //cnt_msg_end++;
+                int cnt_nodes = 0;
 		if(flag_queue == 0)
 		{
+			cnt_msg_end_queue1++;
                 	queue_msg_header = queue_msg_header->next;
                 	queue_msg_header->str = NULL;
                 	free(temp);
-			cnt_msg_end_queue1++;
 		}
 		if(flag_queue == 1)
 		{
+			
 			queue2_msg_header = queue2_msg_header->next;
                         queue2_msg_header->str = NULL;
                         free(temp);
-			cnt_msg_end_queue2++;
 		}
                 /*if (valid_msg_end==100){
                         FILE *fp = fopen(data_file, "wb");
@@ -490,20 +474,6 @@ void *process(){
                         }
                         fclose(fp);
                 }*/
-		if(num == 100)
-		{
-			double latency = 0;
-			double avg_latency = 0;
-			for(int i = 0; i<num ;i++)
-			{
-				latency += process_latency[i];
-				//printf("save:%ld,%ld, %d\n", time_recv_queue2[i].tv_sec,  time_recv_queue2[i].tv_nsec, i);
-				//printf("%f\n",process_latency[i]);
-			}
-			avg_latency = latency/num;
-			printf("avg_latency:%f\n",avg_latency);
-			num = 0;
-		}
         }
 }
 
@@ -548,7 +518,7 @@ void *solve_puzzle(void*sock)
                 	//printf("Error sending packet: Error %d.\n", errno);
                 	exit(1);
         	}
-		//printf("%s\n",msg_solution);
+		printf("%s\n",msg_solution);
 		queue3_msg_header = queue3_msg_header->next;
         	queue3_msg_header->str = NULL;
         	free(temp);

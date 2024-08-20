@@ -50,6 +50,7 @@ struct valid_PC{
         char* te;
         char* pubkey;
 	char* hash_key;
+	struct timespec time_recv;
 };
 
 struct HashTable_PC{
@@ -65,15 +66,16 @@ queue * initLink();
 queue * insertElem(queue * p,char* msg);
 static unsigned int hash_33(char* key);
 struct HashTable_PC* hash_table_new();
-int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* KeyID, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* hash_key);
-int hash_table_input_MID(struct HashTable_PC* ht, unsigned char* key, unsigned char* message);
+int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* KeyID, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* hash_key, struct timespec time_recv);
+int hash_table_input_MID(struct HashTable_PC* ht, unsigned char* key, unsigned char* message, struct timespec time_recv);
 //int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* ts, unsigned char* te, unsigned char* pubkey);
 int hash_table_get_pubkey(struct HashTable_PC* ht, char* key, char* pubkey);
 int hash_table_get_KeyID(struct HashTable_PC* ht, char* key, char* KeyID);
 int hash_table_get_hashkey(struct HashTable_PC* ht, char* key, char* hash_key);
+int hash_table_get_time(struct HashTable_PC* ht, char* key, struct timespec* time_recv);
 int decryption(unsigned char* base64_receive, struct HashTable_PC* Pcert);
 int verify(EC_KEY *ec_key, const unsigned char *sig, int siglen, unsigned char message[]);
-int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, struct HashTable_PC* ht2, struct HashTable_PC* ht3, int num, queue *queue2_msg_rear, queue *queue3_msg_header);
+int message_process(unsigned char base64_receive[], struct HashTable_PC* ht);
 int key_init(unsigned char *key_origin, int len);
 int generate_key_chain(const unsigned char* key, int n, unsigned char* key_chain[]);
 unsigned char *HMAC_sha256(const void *key, int keylen, const unsigned char *data, int datalen, unsigned char *result, unsigned int *resultlen);

@@ -1,7 +1,7 @@
 #include "lab.h"
 
 
-int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, struct HashTable_PC* ht2, struct HashTable_PC* ht3, int num, queue *queue2_msg_rear, queue *queue3_msg_header)
+int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
 {
         int i,j;
         char PC_store[1024] = {'\0'};
@@ -10,133 +10,20 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
         char* PC_st;
         //unsigned char challenge[1024] = {'\0'};
         char message[1024] = {'\0'};
+	char msg_flag[100] = {'\0'};
         char hash_key[65] = {'\0'};
-	char hashes[10][65] = {'\0'};
 	char message_sig[1024] = {'\0'};
         char KeyID[10] = {'\0'};
         char pubkey[1024] = {'\0'};
         char ts[1024] = {'\0'};
         char te[1024] = {'\0'};
         char cert_sig[1024] = {'\0'};
-	char Mac[65] = {'\0'};
-	char message_cache[1024] = {'\0'};
-	char message_hash[65] = {'\0'};
+	char mID[10] = {'\0'};
         char zero_buffer[1024] = {'\0'};
-	char KeyID_cooperative[10] = {'\0'};
-	char pubkey_cooperative[1024] = {'\0'};
-	char message_cache_cooperative[1024] = {'\0'};
-	char Mac_cooperative[1024] = {'\0'};
-        //SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, message_hash, base64_receive, message_cache, num);
-	/* Get receiving message segment */
-        /*for(i = 0, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        challenge[j] = base64_receive[i];
-                }
-                else
-                {
-                        i++;
-                        break;
-                }
-        }
-        for(i, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        message[j] = base64_receive[i];
-                }
-                else
-                {
-                        i++;
-                        break;
-                }
-        }
-        for(i, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        message_sig[j] = base64_receive[i];
-                }
-                else
-                {
-                        i++;
-                break;
-                }
-        }
-        for(i, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        KeyID[j] = base64_receive[i];
-                }
-                else
-                {
-                i++;
-                break;
-                }
-        }
-        for(i, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        pubkey[j] = base64_receive[i];
-                }
-                else
-                {
-                        i++;
-                        break;
-                }
-        }
-        for(i, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        ts[j] = base64_receive[i];
-                }
-                else
-                {
-                        i++;
-                        break;
-                }
-        }
-        for(i, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        te[j] = base64_receive[i];
-                }
-                else
-                {
-                        i++;
-                        break;
-                }
-        }
-        for(i, j = 0; i < strlen(base64_receive); i++, j++)
-        {
-                if(base64_receive[i] != '|')
-                {
-                        cert_sig[j] = base64_receive[i];
-                }
-                else
-                {
-                        i++;
-                        break;
-                }
-        }*/
+	SplitMessage(base64_receive, message, msg_flag, hash_key, message_sig, KeyID, pubkey, ts, te, cert_sig, mID);
         /* Construct PC base64 message */
         unsigned char separator[2] = {'|'};
         unsigned char PC_base64[1024] = {'\0'};     // The PC_decode is the base64 PC without "|"
-        strcpy(PC_base64, KeyID);
-        strcat(PC_base64, separator);
-        strcat(PC_base64, pubkey);
-        strcat(PC_base64, separator);
-        strcat(PC_base64, ts);
-        strcat(PC_base64, separator);
-        strcat(PC_base64, te);
-        strcat(PC_base64, separator);
-        strcat(PC_base64, cert_sig);
-        strcat(PC_base64, separator);
         /* Decode mesage */
         int message_sig_decode_len = 0;
         int KeyID_decode_len = 0;
@@ -151,16 +38,15 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
         unsigned char ts_decode[1024] = {'\0'};
         unsigned char te_decode[1024] = {'\0'};
         unsigned char cert_sig_decode[1024] = {'\0'};
+	struct timespec time_valid;
         //strcpy(message_decode, challenge);
         //strcat(message_decode, "|");
         strcpy(message_decode, message);
 	strcat(message_decode, "|");
+	strcat(message_decode, msg_flag);
+	strcat(message_decode, "|");
 	strcat(message_decode, hash_key);
-	for(int hash_index = 0; hash_index++; hash_index<num)
-	{
-		strcat(message_decode, "|");
-		strcat(message_decode, hashes[hash_index]);
-	}
+	//strcat(message_decode, "|");
         int message_decode_len = strlen(message_decode);
         message_sig_decode_len = base64_decode(message_sig, strlen(message_sig), message_sig_decode);
         KeyID_decode_len = base64_decode(KeyID, strlen(KeyID), KeyID_decode);
@@ -170,6 +56,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
         strcpy(te_decode, te);
         te_decode_len = strlen(te_decode);
         cert_sig_decode_len = base64_decode(cert_sig, strlen(cert_sig), cert_sig_decode);
+	//printf("%s,%s,%s,%s,%s\n",KeyID,pubkey,ts,te,cert_sig);
         //printf("Received message is:\n%s\n", message_decode);
         int doespcstore = 0;
         int times = 1;
@@ -192,7 +79,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
                 /* Construct pseudonym for verify */
                 int pseudonym_len;
                 pseudonym_len = KeyID_decode_len + ts_decode_len + te_decode_len + pubkey_decode_len;
-                unsigned char pseudonym[pseudonym_len];
+                unsigned char pseudonym[pseudonym_len+1];
                 for(i = 0; i < 4; i++)
                 {
                         pseudonym[i] = KeyID_decode[i];
@@ -209,6 +96,8 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
                 {
                         pseudonym[i] = pubkey_decode[j];
                 }
+		pseudonym[pseudonym_len] = '\0';
+		//printf("%02x\n",pseudonym);
                 /* read CA's public key from CA certificate*/
                 FILE *f = fopen("ca.pem", "r");
                 X509 *x_509 = PEM_read_X509(f, NULL, NULL, NULL);
@@ -244,9 +133,10 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
                         return 0;
                         break;
                 case 1:
-                        printf("Pseudonym Certificate Signature Verification Successful.\n");                 // Keep running if verification success
-                        //printf("%s,%s,%s,%s\n",KeyID,ts,te,pubkey);
-                        //hash_table_input(ht,KeyID,ts,te,pubkey);
+                        //printf("Pseudonym Certificate Signature Verification Successful.\n");                 // Keep running if verification success
+                        clock_gettime(CLOCK_REALTIME, &time_valid);
+			//printf("%s,%s,%s,%s\n",KeyID,ts,te,pubkey);
+                        hash_table_input(ht,KeyID, KeyID, ts, te, pubkey, hash_key, time_valid);
                         break;
                 default:
                         break;
@@ -254,7 +144,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
         }
         else        // Use PCSave to verify Beacon Signature
         {
-                printf("Received PC already saved, then skip PC verification!\n");
+                //printf("Received PC already saved, then skip PC verification!\n");
                 //pubkey_decode_len = base64_decode(pubkey, strlen(pubkey), pubkey_decode);
         }
 
@@ -304,7 +194,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht, str
                 return 0;
                 break;
         case 1:
-                printf("Beacon Verification Success.\n");
+                //printf("Beacon Verification Success.\n");
 		//hash_table_input(ht3,KeyID,KeyID,ts,te,pubkey,message_cache,Mac);
 		/*for(int hash_index = 0; hash_index++; hash_index<num)
 		{
@@ -380,13 +270,17 @@ int verify(EC_KEY *ec_key, const unsigned char *sig, int siglen, unsigned char m
         int ret;
         unsigned char digest[32]={};
         unsigned int digest_len = 0;
+	char hash_encode[100] = {'\0'};
 
         if(!EVP(message, digest, &digest_len))
         {
                 printf("Error：EVP\n");
                 return 0;
         }
-
+	/*for (int j = 0; j < 32 ; j++){
+                snprintf(hash_encode+2*j, sizeof(hash_encode)-2*j, "%02x", digest[j]);
+        }
+	printf("%s\n",hash_encode);*/
         /* verify the signature signed by CA's private key */
         ret = ECDSA_verify(0, digest, digest_len, sig, siglen, ec_key);
         return ret;
