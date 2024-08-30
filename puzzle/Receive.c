@@ -3,6 +3,13 @@
 
 int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
 {
+	struct timespec time1;
+	struct timespec time2;
+	struct timespec time3;
+	struct timespec time4;
+	struct timespec time5;
+        struct timespec time6;
+	double process1, process2, process3, process4;
         int i,j;
         char PC_store[1024] = {'\0'};
         char PC_store_KeyID[10] = {'\0'};
@@ -41,6 +48,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
 	struct timespec time_valid;
         //strcpy(message_decode, challenge);
         //strcat(message_decode, "|");
+	clock_gettime(CLOCK_REALTIME, &time1);
         strcpy(message_decode, message);
 	strcat(message_decode, "|");
 	strcat(message_decode, msg_flag);
@@ -56,12 +64,15 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
         strcpy(te_decode, te);
         te_decode_len = strlen(te_decode);
         cert_sig_decode_len = base64_decode(cert_sig, strlen(cert_sig), cert_sig_decode);
+	clock_gettime(CLOCK_REALTIME, &time2);
 	//printf("%s,%s,%s,%s,%s\n",KeyID,pubkey,ts,te,cert_sig);
         //printf("Received message is:\n%s\n", message_decode);
         int doespcstore = 0;
         int times = 1;
         doespcstore = hash_table_get_pubkey(ht,KeyID,pubkey);
-        pubkey_decode_len = base64_decode(pubkey, strlen(pubkey), pubkey_decode);
+	clock_gettime(CLOCK_REALTIME, &time3);
+	pubkey_decode_len = base64_decode(pubkey, strlen(pubkey), pubkey_decode);
+	//clock_gettime(CLOCK_REALTIME, &time3);
         if (doespcstore == 0)                             // If PCSave is not same as PC receive
         {/* Verify Signatuer, if correct save as PCSave */
                 /* Get system time */
@@ -147,8 +158,6 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
                 //printf("Received PC already saved, then skip PC verification!\n");
                 //pubkey_decode_len = base64_decode(pubkey, strlen(pubkey), pubkey_decode);
         }
-
-
         /* Write public key into EC_key format */
         EC_KEY *ec_key;
         EC_GROUP *ec_group;
@@ -180,7 +189,8 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
                 EC_KEY_free(ec_key);
                 return 0;
         }
-        /* Verify beacon message */
+        clock_gettime(CLOCK_REALTIME, &time4);
+	/* Verify beacon message */
         int Beacon_result;
         Beacon_result = verify(ec_key, message_sig_decode, message_sig_decode_len, message_decode);
         switch (Beacon_result)
@@ -213,6 +223,12 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
         default:
                 break;
         }
+	clock_gettime(CLOCK_REALTIME, &time5);
+	process1 = (time2.tv_sec - time1.tv_sec)*THOUSAND + (time2.tv_nsec - time1.tv_nsec)/MILLION;
+	process2 = (time3.tv_sec - time2.tv_sec)*THOUSAND + (time3.tv_nsec - time2.tv_nsec)/MILLION;
+	process3 = (time4.tv_sec - time3.tv_sec)*THOUSAND + (time4.tv_nsec - time3.tv_nsec)/MILLION;
+	process4 = (time5.tv_sec - time4.tv_sec)*THOUSAND + (time5.tv_nsec - time4.tv_nsec)/MILLION;
+	//printf("%f,%f,%f,%f\n",process1,process2,process3,process4);
         return 1;
 }
 

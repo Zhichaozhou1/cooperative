@@ -24,6 +24,9 @@
 #include <time.h>
 #define MAXSIGLEN 1024
 #define TABLE_SIZE 1000
+#define BILLION 1000000000.0
+#define MILLION 1000000.0
+#define THOUSAND 1000.0
 #define hex_cnt_sha256 64
 #define hmac_resultlen 32
 #define True 1
@@ -83,4 +86,5 @@ int verify_HMAC(const void *key, int keylen, const unsigned char *data, int data
 int SplitMessage(char message_receive[], char message[], char flag[], char hash_key[], char message_sig[], char KeyID[], char pubkey[], char ts[], char te[], char cert_sig[], char mID[]);
 int hash_table_delete(struct HashTable_PC* ht, char* key);
 int solve(char* message, char* solution);
+void set_real_time_priority();
 #endif
