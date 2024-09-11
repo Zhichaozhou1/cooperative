@@ -33,12 +33,15 @@ Sock_target sock_target = {-1};
 struct HashTable_PC* ht;    //valid PC with KeyID
 struct HashTable_PC* ht2;   //message before pre-validation with mID
 struct HashTable_PC* ht3;   //message remove from queue1
+struct HashTable_time* ht4; //receive time
 queue *queue_msg_header = NULL; //linked list header of message before pre-validation
 queue *queue_msg_rear = NULL;
 queue *queue2_msg_header = NULL; //linked list header of message after pre-validation
 queue *queue2_msg_rear = NULL;
 queue *queue3_msg_header = NULL; //linked list header of message to solve the puzzle
 queue *queue3_msg_rear = NULL;
+queue *queue4_msg_header = NULL; //linked list header of message for new discovering
+queue *queue4_msg_rear = NULL;
 struct timespec time_PC_gen;
 struct timespec time_recv_queue1[size_queue_max];
 struct timespec time_recv_queue2[size_queue_max];
@@ -75,9 +78,12 @@ int main(int argc, char* argv[]){
         queue2_msg_rear = queue2_msg_header;
 	queue3_msg_header = initLink();
         queue3_msg_rear = queue3_msg_header;
+	queue4_msg_header = initLink();
+	queue4_msg_rear = queue3_msg_header;
         ht = hash_table_new();
 	ht2 = hash_table_new();
 	ht3 = hash_table_new();
+	ht4 = hash_table_time_new();
         strcpy(challenge,rsu_key_initial);
 	usleep(1000*1000);
         void *recv_message(void*);
@@ -252,26 +258,27 @@ void* recv_message (void *sock){
 				if(hash_puzzle_encode[63]=='0')//&&hash_puzzle_encode[62]=='0')
                 		{
 					//printf("puzzle-based pre-validation success!\n");
-					struct timespec time_recv;
-					hash_table_input_MID(ht3, mID, message_cached, time_recv);
-					hash_table_get_time(ht2, mID, &time_recv);
+					struct timespec time_recvd;
+					hash_table_input_MID(ht3, mID, message_cached, time_recvd);
+					hash_table_get_time(ht2, mID, &time_recvd);
 					//printf("recv:%ld,%ld\n, time_recv.tv_sec, time_recv.tv_nsec");
-					time_recv_queue2[cnt_msg_recv_queue2] = time_recv;
+					//time_recv_queue2[cnt_msg_recv_queue2] = time_recvd;
 					//printf("recv:%ld,%ld, %d\n", time_recv_queue2[cnt_msg_end_queue2].tv_sec,  time_recv_queue2[cnt_msg_end_queue2].tv_nsec, cnt_msg_end_queue2);
 					hash_table_delete(ht2, mID);
-                        		queue2_msg_rear = insertElem(queue2_msg_rear, message_cached);
+                        		queue4_msg_rear = insertElem(queue4_msg_rear, message_cached);
 					pthread_cond_signal(&cond);
 					//clock_gettime(CLOCK_REALTIME, &(time_recv_queue2[cnt_msg_recv_queue1]));
-                                	cnt_msg_recv_queue2++;
+                                	//cnt_msg_recv_queue2++;
                 		}
 			}
 		}
 		else
                 {
-			printf("%s\n",message_recv);
+			//printf("%s\n",message_recv);
 			//recv_num+=1;
                         //printf("%dth Message received\n",recv_num);
-			//clock_gettime(CLOCK_REALTIME, &time_recv);
+			clock_gettime(CLOCK_REALTIME, &time_recv);
+			hash_table_input_time(ht4,mID,time_recv);
                         //printf("receive:%ld.%ld\n",time_recv.tv_sec,time_recv.tv_nsec);
 			keycache = hash_table_get_hashkey(ht, KeyID, hash_key_cached);
 			if (keycache == 0)
@@ -403,11 +410,13 @@ void* send_message (void*sock){
 
 void *process(){
         int num=0;
+	int num2;
 	int count = 0;
 	queue *temp;
 	queue *temp_plus;
 	char *msg_temp;
 	char msg_pass[1024] = {'\0'};
+	//char pubkey[1024] = {'\0'};
 	char message[100] = {'\0'};
 	char msg_flag[100] = {'\0'};
         char hash_key[65] = {'\0'};
@@ -420,44 +429,60 @@ void *process(){
         char mID[10] = {'\0'};
 	int flag_queue = 0;
 	int flag=0;
+	int PC_cached = 0;
 	struct timespec time_now;
+	struct timespec time_recv;
 	struct timespec time_process;
 	struct timespec time_process2;
-	double process_time = 0;
+	double wait_time = 0;
 	double process_latency[size_queue_max];
+	double discover_latency[1000];
         set_real_time_priority();
 	while(1){
                 int expire=0;
+		PC_cached = 0;
                 //Skip the process if there is no message in the linked list (header->next is NULL)
-                if (queue2_msg_header->next==NULL){
-                        if(queue_msg_header->next==NULL)
-			{
-				//usleep(1);
-				count++;
-				if(count == 10000)
+                if(queue4_msg_header->next==NULL){
+			if (queue2_msg_header->next==NULL){
+                        	if(queue_msg_header->next==NULL)
 				{
-					count = 0;
-					pthread_cond_wait(&cond, &mutex);
+					//usleep(1);
+					count++;
+					if(count == 10000)
+					{
+						count = 0;
+						pthread_cond_wait(&cond, &mutex);
+					}
+					continue;
+                		}
+				else
+				{
+					//continue;
+					flag_queue = 0;
+					temp = queue_msg_header;
+                			temp_plus = queue_msg_header;
+                			msg_temp = temp->next->str;
 				}
-				continue;
-                	}
-			else
-			{
-				//continue;
-				flag_queue = 0;
-				temp = queue_msg_header;
-                		temp_plus = queue_msg_header;
-                		msg_temp = temp->next->str;
 			}
+			else
+                	{
+                        	//clock_gettime(CLOCK_REALTIME, &time_process);
+                        	//printf("process:%ld.%ld\n",time_process.tv_sec,time_process.tv_nsec);
+                        	flag_queue = 1;
+                        	//continue;
+                        	temp = queue2_msg_header;
+                        	temp_plus = queue2_msg_header;
+                        	msg_temp = temp->next->str;
+                	}
 		}
 		else
 		{
 			//clock_gettime(CLOCK_REALTIME, &time_process);
 			//printf("process:%ld.%ld\n",time_process.tv_sec,time_process.tv_nsec);
-			flag_queue = 1;
+			flag_queue = 2;
 			//continue;
-			temp = queue2_msg_header;
-                	temp_plus = queue2_msg_header;
+			temp = queue4_msg_header;
+                	temp_plus = queue4_msg_header;
                 	msg_temp = temp->next->str;
 		}
 		if (temp->next != NULL && temp->next->next != NULL) {
@@ -466,7 +491,29 @@ void *process(){
 		SplitMessage(msg_temp, message, msg_flag, hash_key, message_sig, KeyID, pubkey, ts, te, cert_sig, mID);
 		if(hash_table_get_KeyID(ht3, KeyID, msg_pass) == 1)
                	{
-			cnt_msg_end_queue1++;
+			//cnt_msg_end_queue1++;
+			if(flag_queue == 0)
+                	{
+                        	queue_msg_header = queue_msg_header->next;
+                        	queue_msg_header->str = NULL;
+                        	free(temp);
+                        	cnt_msg_end_queue1++;
+                	}
+                	if(flag_queue == 1)
+                	{
+                        	queue2_msg_header = queue2_msg_header->next;
+                        	queue2_msg_header->str = NULL;
+                        	free(temp);
+                        	cnt_msg_end_queue2++;
+                	}
+			if(flag_queue == 2)
+                        {
+                                queue4_msg_header = queue4_msg_header->next;
+                                queue4_msg_header->str = NULL;
+                                free(temp);
+                                //cnt_msg_end_queue2++;
+                        }
+			hash_table_delete(ht3,mID);
                        	continue;
                 }
 		//SplitMessage(message, hash_key, hashes, message_sig, KeyID, pubkey, ts, te, cert_sig, Mac, msg_hash, msg_temp, message_cache, num);
@@ -475,8 +522,20 @@ void *process(){
                 //char *msg_temp = temp->next->str;
                 //if(((time_process[cnt_msg_end].tv_sec - time_recv[cnt_msg_end].tv_sec)*1000 + (time_process[cnt_msg_end].tv_nsec - time_recv[cnt_msg_end].tv_nsec)/MILLION)<1000)
                 //{
+		hash_table_get_recv_time(ht4, mID, &time_recv);
+		clock_gettime(CLOCK_REALTIME, &time_now);
+		wait_time = (time_now.tv_sec - time_recv.tv_sec)*THOUSAND + (time_now.tv_nsec - time_recv.tv_nsec)/MILLION;
+		PC_cached = hash_table_get_pubkey(ht,KeyID,pubkey);
+		if(wait_time<1200)
+		{
 		//clock_gettime(CLOCK_REALTIME, &time_process);
-                flag = message_process(msg_temp, ht); //Verify messages
+                	flag = message_process(msg_temp, ht); //Verify messages
+		}
+		else
+		{
+			//printf("%f,time expire!\n",wait_time);
+			flag = 0;
+		}
 		//clock_gettime(CLOCK_REALTIME, &time_process2);
 			//printf("1\n");
                 //}
@@ -485,22 +544,18 @@ void *process(){
                 if (flag == 1){
                         //printf("Verification successful!\n");
 			clock_gettime(CLOCK_REALTIME, &time_now);
-			if(flag_queue == 0)
+			hash_table_delete(ht2, mID);
+			process_latency[num] = (time_now.tv_sec - time_recv.tv_sec)*THOUSAND + (time_now.tv_nsec - time_recv.tv_nsec) / MILLION;
+			if(PC_cached == 0)
 			{
-				hash_table_delete(ht2, mID);
-				//printf("q1:%ld,%ld\n", time_recv_queue1[cnt_msg_end_queue1].tv_sec,  time_recv_queue1[cnt_msg_end_queue1].tv_nsec);
-				process_latency[num] = (time_now.tv_sec - time_recv_queue1[cnt_msg_end_queue1].tv_sec)*THOUSAND + (time_now.tv_nsec - time_recv_queue1[cnt_msg_end_queue1].tv_nsec)/MILLION;
-			}
-			if(flag_queue == 1)
-			{
-				//printf("q2:%ld,%ld,%d\n", time_recv_queue2[cnt_msg_end_queue2].tv_sec,  time_recv_queue2[cnt_msg_end_queue2].tv_nsec, cnt_msg_end_queue2);
-				process_latency[num] = (time_now.tv_sec - time_recv_queue2[cnt_msg_end_queue2].tv_sec)*THOUSAND + (time_now.tv_nsec - time_recv_queue2[cnt_msg_end_queue2].tv_nsec) / MILLION;
+				discover_latency[num2] = (time_now.tv_sec - time_recv.tv_sec)*THOUSAND + (time_now.tv_nsec - time_recv.tv_nsec)/MILLION;
+				num2++;
 			}
 			num++;
 			//hash_table_input(ht3,KeyID,ts,te,pubkey,message_cache,Mac);
                 } else if (flag == 0){
-                        num++;
-                        printf("Verification failed!\n");
+                        //num++;
+                        //printf("Verification failed!\n");
                 } else if (flag == -1){
                         printf("Other errors.\n");
                 }
@@ -508,6 +563,7 @@ void *process(){
                         msg_delay[valid_msg_end] = (time_end[cnt_msg_end].tv_sec- time_recv[cnt_msg_end].tv_sec)*1000 + (time_end[cnt_msg_end].tv_nsec - time_recv[cnt_msg_end].tv_nsec)/MILLION;
                         valid_msg_end++;
                 }*/
+		hash_table_delete_time(ht4, mID);
 		if(flag_queue == 0)
 		{
                 	queue_msg_header = queue_msg_header->next;
@@ -522,6 +578,13 @@ void *process(){
                         free(temp);
 			cnt_msg_end_queue2++;
 		}
+		if(flag_queue == 2)
+                {
+                        queue4_msg_header = queue4_msg_header->next;
+                        queue4_msg_header->str = NULL;
+                        free(temp);
+                        //cnt_msg_end_queue2++;
+                }
                 /*if (valid_msg_end==100){
                         FILE *fp = fopen(data_file, "wb");
                         for (int i = 0; i < valid_msg_end; i++) {
@@ -530,25 +593,32 @@ void *process(){
                         }
                         fclose(fp);
                 }*/
-		if(num == 72000)
+		if(num2 == 200)
 		{
 			double latency = 0;
 			double avg_latency = 0;
+			double latency_discover = 0;
+			double avg_latency_discover = 0;
 			FILE *fp = fopen(data_file, "wb");
 			FILE *fa = fopen(avg_file, "wb");
-			for(int i = 36000; i<num ;i++)
+			for(int i = 50; i<num2 ;i++)
 			{
-				fprintf(fp, "%d %fms\n", i, process_latency[i]);
-				latency += process_latency[i];
+				fprintf(fp, "%d %fms\n", i, discover_latency[i]);
+				latency_discover += discover_latency[i];
 				//printf("save:%ld,%ld, %d\n", time_recv_queue2[i].tv_sec,  time_recv_queue2[i].tv_nsec, i);
 				//printf("%f\n",process_latency[i]);
 			}
+			for(int i = 1000; i<num; i++)
+			{
+				latency += process_latency[i];
+			}
 			fclose(fp);
-			avg_latency = latency/36000;
-			//printf("avg_latency:%f\n",avg_latency);
+			avg_latency_discover = latency_discover/150;
+			avg_latency = latency/(num-1000);
+			printf("avg_latency:%f, total:%f\n avg_latency_discover:%f, total:%f\n",avg_latency,latency,avg_latency_discover,latency_discover);
 			fprintf(fa, "%fms\n", avg_latency);
 			fclose(fa);
-			num=0;
+			num2 = 0;
 		}
         }
 }

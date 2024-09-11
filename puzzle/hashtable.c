@@ -24,6 +24,20 @@ struct HashTable_PC* hash_table_new()
         return ht;
 }
 
+struct HashTable_time* hash_table_time_new()
+{
+        struct HashTable_time* ht = (struct HashTable_time*)calloc(1,sizeof(struct HashTable_time));
+        if (NULL == ht) {
+                return NULL;
+        }
+        ht->table = (struct receive_time**)calloc(TABLE_SIZE,sizeof(struct receive_time*));
+        if (NULL == ht->table) {
+                return NULL;
+        }
+        //memset(ht->table, 0, sizeof(struct valid_PC*) * TABLE_SIZE);
+        return ht;
+}
+
 int hash_table_input(struct HashTable_PC* ht, unsigned char* key, unsigned char* KeyID, unsigned char* ts, unsigned char* te, unsigned char* pubkey, unsigned char* hash_key, struct timespec time_recv){
         int i = hash_33(key) % TABLE_SIZE;
         struct valid_PC* p = ht->table[i];
@@ -108,7 +122,36 @@ int hash_table_input_MID(struct HashTable_PC* ht, unsigned char* key, unsigned c
         return 0;
 }
 
-
+int hash_table_input_time(struct HashTable_time* ht, unsigned char* key, struct timespec time_recv){
+        int i = hash_33(key) % TABLE_SIZE;
+        struct receive_time* p = ht->table[i];
+        struct receive_time* prep = p;
+        struct receive_time* ps = p;
+        char* keystr = malloc(strlen(key)+1);
+        struct receive_time* receive_time = (struct receive_time*)calloc(1,sizeof(struct receive_time));
+        receive_time->next == NULL;
+        strcpy(keystr,key);
+        receive_time->key = keystr;
+        receive_time->time_recv = time_recv;
+        while(p!=NULL)
+        {
+                prep = p;
+                if(strcmp(p->key,key) == 0)
+                {
+                        return 0;
+                }
+                p = p->next;
+        }
+        if(!ps)
+        {
+                ht->table[i] = receive_time;
+        }
+        else
+        {
+                prep->next = receive_time;
+        }
+        return 0;
+}
 
 int hash_table_get_pubkey(struct HashTable_PC* ht, char* key, char* pubkey){
         int i = hash_33(key) % TABLE_SIZE;
@@ -210,6 +253,30 @@ int hash_table_get_time(struct HashTable_PC* ht, char* key, struct timespec* tim
         return 0;
 }
 
+int hash_table_get_recv_time(struct HashTable_time* ht, char* key, struct timespec* time_recv){
+        int i = hash_33(key) % TABLE_SIZE;
+        int num=0;
+        struct receive_time* p = ht->table[i];
+        while(p)
+        {
+                if (strcmp(p->key,key) == 0) {
+                        //strcpy(hash_key,p->hash_key);
+                        *time_recv = p -> time_recv;
+                        return 1;
+                }
+                if(p->next!=NULL)
+                {
+                        p = p->next;
+                }
+                else
+                {
+                        return 0;
+                }
+        }
+        return 0;
+}
+
+
 int hash_table_delete(struct HashTable_PC* ht, char* key)
 {
     if (ht == NULL || key == NULL) return -1;
@@ -236,3 +303,29 @@ int hash_table_delete(struct HashTable_PC* ht, char* key)
     }
     return -1;
 }
+
+int hash_table_delete_time(struct HashTable_time* ht, char* key)
+{
+    if (ht == NULL || key == NULL) return -1;
+    int index = hash_33(key) % TABLE_SIZE;
+    struct receive_time *current = ht->table[index];
+    struct receive_time *prev = NULL;
+    while (current != NULL) {
+        if (strcmp(current->key, key) == 0) {
+            if (prev) {
+                prev->next = current->next;
+            } else {
+                ht->table[index] = current->next;
+            }
+            //free(current->time_recv);
+            free(current);
+            return 0;
+        }
+        prev = current;
+        current = current->next;
+    }
+    return -1;
+}
+
+
+

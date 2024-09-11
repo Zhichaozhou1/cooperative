@@ -136,7 +136,7 @@ int message_process(unsigned char base64_receive[], struct HashTable_PC* ht)
                 switch (PCresult)
                 {
                 case 0:
-                        printf("Pseudonym Certificate Signature Invalid.\n");                              // Return 0 if verification failed
+                        //printf("Pseudonym Certificate Signature Invalid.\n");                              // Return 0 if verification failed
                         return 0;
                         break;
                 case -1:
